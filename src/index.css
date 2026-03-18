@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Background and Global Styles */
+body {
+  margin: 0;
+  background-color: #050b18; /* Dark Navy Blue */
+  color: white;
+  font-family: 'Inter', sans-serif;
+}
+
+/* AI Camera Scanning Animation */
+@keyframes scan {
+  0% { top: 0%; opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { top: 100%; opacity: 0.3; }
+}
+
+.animate-scan-line {
+  animation: scan 2s linear infinite;
+  position: absolute;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to right, transparent, #3b82f6, transparent);
+  box-shadow: 0 0 15px #3b82f6;
+  z-index: 20;
+}
+
+/* Glass Effect for Cards */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
