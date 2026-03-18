@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nidan-Live | Triage Scan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            background-color: var(--panel-bg);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            border: 1px solid #334155;
+        }
+
+        h1 { margin-top: 0; font-size: 24px; letter-spacing: 1px; }
+        .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 30px; }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid #334155;
+            background-color: #000;
+            margin-bottom: 20px;
+        }
+
+        video {
+            width: 100%;
+            display: block;
+            transform: scaleX(-1); /* Mirror the webcam */
+        }
+
+        /* The futuristic scanning line */
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            opacity: 0;
+            z-index: 10;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 1; }
+            50% { top: 100%; opacity: 1; }
+            100% { top: 0%; opacity: 1; }
+        }
+
+        .scanning .scan-line { animation: scan 2s linear infinite; }
+
+        button {
+            background-color: var(--accent);
+            color: #000;
+            border: none;
+            padding: 16px 0;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover { background-color: #059669; }
+        button:disabled { background-color: #334155; color: #64748b; cursor: not-allowed; }
+
+        /* Simulated Pulse Waveform Visualizer */
+        .waveform {
+            height: 40px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .waveform.active { opacity: 1; }
+
+        .bar {
+            width: 4px;
+            background-color: var(--accent);
+            border-radius: 2px;
+            animation: pulse 1s infinite ease-in-out;
+        }
+
+        .bar:nth-child(1) { height: 10px; animation-delay: 0.1s; }
+        .bar:nth-child(2) { height: 25px; animation-delay: 0.2s; }
+        .bar:nth-child(3) { height: 40px; animation-delay: 0.3s; }
+        .bar:nth-child(4) { height: 25px; animation-delay: 0.4s; }
+        .bar:nth-child(5) { height: 10px; animation-delay: 0.5s; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scaleY(0.3); }
+            50% { transform: scaleY(1); }
+        }
+
+        /* Results Panel */
+        #result-panel {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 12px;
+            background-color: #0f172a;
+            display: none;
+            border: 1px solid #334155;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .triage-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .priority-2 { background-color: #ef4444; color: white; } /* High Priority */
+        .priority-5 { background-color: var(--accent); color: black; } /* Low Priority */
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <h1>NIDAN-LIVE SYSTEM</h1>
+        <div class="subtitle">AI-Powered Distributed Triage • Proof of Concept</div>
+
+        <div class="video-container" id="video-container">
+            <div class="scan-line" id="scan-line"></div>
+            <video id="videoElement" autoplay muted playsinline></video>
+        </div>
+
+        <div class="waveform" id="waveform">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+
+        <button id="scanBtn">Initiate 10-Second Scan</button>
+        
+        <div id="result-panel">
+            <div class="metric">
+                <span style="color: var(--text-muted)">Heart Rate:</span>
+                <strong id="bpm-val">-- BPM</strong>
+            </div>
+            <div class="metric">
+                <span style="color: var(--text-muted)">System Status:</span>
+                <strong id="status-val">--</strong>
+            </div>
+            <div id="triage-badge" class="triage-badge">Awaiting Scan</div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const scanBtn = document.getElementById('scanBtn');
+        const resultPanel = document.getElementById('result-panel');
+        const bpmVal = document.getElementById('bpm-val');
+        const triageBadge = document.getElementById('triage-badge');
+        
+        let mediaRecorder;
+        let recordedChunks = [];
+
+        // Access webcam
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => console.error("Camera error:", err));
+
+        scanBtn.addEventListener('click', async () => {
+            scanBtn.disabled = true;
+            scanBtn.innerText = "Recording Scan... (10s)";
+            resultPanel.style.display = 'none';
+            recordedChunks = [];
+
+            const stream = video.srcObject;
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) recordedChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                scanBtn.innerText = "AI Processing...";
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const formData = new FormData();
+                formData.append('video', blob, 'scan.webm');
+
+                try {
+                    // Send video to the Option B backend endpoint
+                    const response = await fetch('http://localhost:8000/api/scan', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    
+                    resultPanel.style.display = 'block';
+                    if(data.vitals.status === "success") {
+                        bpmVal.innerText = `${data.vitals.bpm} BPM`;
+                        bpmVal.style.color = '#10b981';
+                        triageBadge.innerText = `PRIORITY ${data.triage_priority}: ${data.recommended_facility}`;
+                    } else {
+                        bpmVal.innerText = "ERROR";
+                        triageBadge.innerText = data.vitals.message;
+                    }
+                } catch (err) {
+                    resultPanel.style.display = 'block';
+                    bpmVal.innerText = "SERVER ERROR";
+                }
+                scanBtn.disabled = false;
+                scanBtn.innerText = "Initiate New Scan";
+            };
+
+            mediaRecorder.start();
+            // Record for exactly 10 seconds
+            setTimeout(() => { mediaRecorder.stop(); }, 10000); 
+        });
+    </script>
