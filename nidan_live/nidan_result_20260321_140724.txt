@@ -1,0 +1,18 @@
+╔══════════════════════════════════════════════╗
+║         NIDAN-LIVE  SCAN RESULT              ║
+╠══════════════════════════════════════════════╣
+║  Date/Time    : 21-03-2026  02:07 PM        ║
+╠══════════════════════════════════════════════╣
+║  HEART RATE   : 89 BPM                           ║
+║  STRESS       : RELAXED          (5%)        ║
+║  RESPIRATION  : 22 breaths/min                      ║
+╠══════════════════════════════════════════════╣
+║  HRV RMSSD    : 226.7 ms                            ║
+║  HRV SDNN     : 169.9 ms                            ║
+╠══════════════════════════════════════════════╣
+║  BLINK RATE   : 5 per min                        ║
+║  EYE STATUS   : Low blink (fatigue), Eyes clear║
+╠══════════════════════════════════════════════╣
+║  TRIAGE LEVEL : NORMAL                       ║
+║  NEXT STEP    : You are doing well. Stay heal║
+╚══════════════════════════════════════════════╝
