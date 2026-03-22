@@ -1,0 +1,24 @@
+╔══════════════════════════════════════════════════╗
+║          NIDAN-LIVE  SCAN RESULT                  ║
+╠══════════════════════════════════════════════════╣
+║  Date / Time   : 22-03-2026  10:41 AM              ║
+╠══════════════════════════════════════════════════╣
+║  HEART RATE    : 62 BPM                             ║
+║  STRESS        : RELAXED            (5%)          ║
+║  RESPIRATION   : 16 breaths/min                    ║
+╠══════════════════════════════════════════════════╣
+║  HRV RMSSD     : 309.0 ms                            ║
+║  HRV SDNN      : 186.7 ms                            ║
+╠══════════════════════════════════════════════════╣
+║  BLINK RATE    : 23 per min                          ║
+║  EYE STATUS    : Blink normal, Eyes clear      ║
+╠══════════════════════════════════════════════════╣
+║  TRIAGE LEVEL  : NORMAL                        ║
+║  NEXT STEP     : You are doing well. Stay healt║
+╠══════════════════════════════════════════════════╣
+║  SCAN REGIONS  :                                   ║
+║   FOREHEAD  — capillary bed       (yellow boxes)   ║
+║   CHEEK     — bilateral sampling  (green boxes)    ║
+║   NOSE TIP  — thin skin/capillary (cyan boxes)     ║
+║   EYES      — blink + redness     (orange outline) ║
+╚══════════════════════════════════════════════════╝
