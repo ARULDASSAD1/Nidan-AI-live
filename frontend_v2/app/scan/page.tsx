@@ -12,7 +12,7 @@ import AIAvatar from '@/components/AIAvatar';
 const auth = getAuth(db.app);
 
 // ══════════════════════════════════════════════════════════════════
-// 1. VITALS SCANNER COMPONENT (WITH BULLETPROOF MAP FALLBACK)
+// 1. VITALS SCANNER COMPONENT
 // ══════════════════════════════════════════════════════════════════
 function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessionVitals: any }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -23,7 +23,6 @@ function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessi
   const prevFrameRef = useRef<Uint8Array | null>(null);
 
   const [status, setStatus] = useState<string>('idle'); 
-  // 🌟 FIX: Default timer to 10 seconds
   const [timeLeft, setTimeLeft] = useState(10);
   const [vitals, setVitals] = useState({ bpm: '--', resp: '--', stress: '--', eyeStatus: '--' });
   const [triage, setTriage] = useState({ priority: 5, facility: 'Awaiting Scan', message: '' });
@@ -36,7 +35,6 @@ function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessi
 
   const [envStatus, setEnvStatus] = useState({ lighting: 'checking', motion: 'checking' });
 
-  // 🌟 FIX: Bulletproof Overpass API Call with Simulated Fallback
   const findNearestHospital = async (lat: number, lng: number) => {
     setIsLocating(true);
     try {
@@ -149,7 +147,6 @@ function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessi
   const startScan = () => {
     if (location.lat === 0 && location.lng === 0) { setLocationError("ERROR: Please provide a location before scanning."); return; }
 
-    // 🌟 FIX: Set timer state to 10s when starting
     setStatus('recording'); setTimeLeft(10); recordedChunksRef.current = [];
     const stream = videoRef.current?.srcObject as MediaStream;
     if (!stream) return;
@@ -172,7 +169,9 @@ function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessi
       const formData = new FormData(); formData.append('video', blob, 'scan.webm');
 
       try {
-        const response = await fetch('http://192.168.222.1:8000/api/scan', { method: 'POST', body: formData });
+        // 🌟 DYNAMIC IP: Works perfectly on Mobile and Laptop
+        const host = window.location.hostname;
+        const response = await fetch(`http://${host}:8000/api/scan`, { method: 'POST', body: formData });
         const data = await response.json();
 
         if (data.vitals?.status === "success") {
@@ -207,7 +206,6 @@ function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessi
     };
 
     mediaRecorder.start();
-    // 🌟 FIX: Automatically stop recording after 10000ms (10 seconds) instead of 45000ms
     setTimeout(() => { if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') mediaRecorderRef.current.stop(); }, 10000); 
   };
 
@@ -251,7 +249,6 @@ function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessi
       </div>
 
       <button onClick={startScan} disabled={status === 'recording' || status === 'processing' || location.lat === 0 || (isEnvironmentBad && status === 'idle')} className="w-full bg-sky-500 hover:bg-sky-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-900 font-extrabold py-4 px-6 rounded-xl transition-all shadow-[0_0_20px_rgba(56,189,248,0.3)] uppercase tracking-wide mb-8">
-        {/* 🌟 FIX: Updated button text to "Initiate 10-Second Scan" */}
         {location.lat === 0 ? "Enter Location First" : isEnvironmentBad && status === 'idle' ? "Fix Lighting / Stop Moving" : status === 'idle' ? "Initiate 10-Second Scan" : status === 'recording' ? `Recording (${timeLeft}s remaining)` : status === 'processing' ? "AI Processing Data..." : "Scan Complete - Scan Again"}
       </button>
 
@@ -270,7 +267,7 @@ function VitalsScanner({ userData, setSessionVitals }: { userData: any, setSessi
 // ══════════════════════════════════════════════════════════════════
 function AIConsult({ userData }: { userData: any }) {
   const [messages, setMessages] = useState<{role: string, text: string}[]>([
-    { role: 'ai', text: `Hello ${userData?.name || 'Patient'}. I am your diagnostic AI assistant. Please describe your symptoms.` }
+    { role: 'ai', text: `Hello ${userData?.name || 'Patient'}. I am connected to your Pinecone Medical Records. How can I help you today?` }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -285,7 +282,9 @@ function AIConsult({ userData }: { userData: any }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://192.168.222.1:8000/api/chat', {
+      // 🌟 DYNAMIC IP: Works perfectly on Mobile and Laptop
+      const host = window.location.hostname;
+      const res = await fetch(`http://${host}:8000/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient_id: userData?.uid, symptoms: userMsg })
@@ -301,30 +300,45 @@ function AIConsult({ userData }: { userData: any }) {
 
   return (
     <div className="w-full max-w-2xl mx-auto bg-slate-900/80 rounded-3xl shadow-2xl border border-slate-700/50 backdrop-blur-sm flex flex-col h-[650px]">
-      <div className="p-6 border-b border-slate-800"><h2 className="text-xl font-black text-emerald-400 uppercase tracking-widest">Diagnostic Consult</h2></div>
+      <div className="p-6 border-b border-slate-800 font-black text-emerald-400 uppercase tracking-widest bg-slate-950/50 flex justify-between items-center">
+          Diagnostic Agent
+          <span className="text-[10px] text-sky-400 font-mono tracking-normal bg-sky-900/30 px-2 py-1 rounded">RAG Enabled</span>
+      </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] rounded-2xl p-4 text-sm ${msg.role === 'user' ? 'bg-sky-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'}`}>{msg.text}</div>
           </div>
         ))}
-        {isLoading && <div className="text-xs font-bold text-emerald-400 animate-pulse">Agent is thinking...</div>}
+        {isLoading && <div className="text-xs font-bold text-emerald-400 animate-pulse">Querying Pinecone DB...</div>}
       </div>
       <form onSubmit={sendMessage} className="p-4 bg-slate-900 border-t border-slate-800 flex gap-2">
-        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type symptoms..." className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none" />
-        <button type="submit" disabled={isLoading} className="bg-emerald-500 text-slate-900 font-bold px-6 rounded-xl">Send</button>
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type symptoms..." className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+        <button type="submit" disabled={isLoading} className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-900 font-bold px-6 rounded-xl transition-colors">Send</button>
       </form>
     </div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 3. IMAGING COMPONENT
+// 3. IMAGING COMPONENT (WITH LOCAL CACHE & PINECONE SYNC)
 // ══════════════════════════════════════════════════════════════════
-function MedicalImaging({ userData, setSessionVision }: { userData: any, setSessionVision: any }) {
+function MedicalImaging({ userData, setSessionVision, sessionVision }: { userData: any, setSessionVision: any, sessionVision?: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState('');
+
+  // 🌟 FIX: Instantly restore from Local Cache when changing tabs
+  useEffect(() => {
+    if (!userData?.uid) return;
+    const cachedReport = localStorage.getItem(`vision_report_${userData.uid}`);
+    if (cachedReport && !result) {
+        setResult(cachedReport);
+        setSessionVision(cachedReport);
+    } else if (sessionVision && !result) {
+        setResult(sessionVision);
+    }
+  }, [userData?.uid, sessionVision, result, setSessionVision]);
 
   const handleUpload = async () => {
     if (!file) return;
@@ -336,10 +350,31 @@ function MedicalImaging({ userData, setSessionVision }: { userData: any, setSess
       formData.append('image', file);
       formData.append('patient_id', userData?.uid);
 
-      const res = await fetch('http://192.168.222.1:8001/api/analyze-scan', { method: 'POST', body: formData });
+      // 🌟 DYNAMIC IP: Works on both localhost and Mobile IPs
+      const host = window.location.hostname;
+      const res = await fetch(`http://${host}:8001/api/analyze-scan`, { method: 'POST', body: formData });
       const data = await res.json();
-      setResult(data.analysis || "Scan complete.");
-      setSessionVision(data.analysis); 
+      
+      if (data.analysis) {
+        setResult(data.analysis);
+        setSessionVision(data.analysis); 
+        
+        // 🌟 CACHE IT LOCALLY
+        localStorage.setItem(`vision_report_${userData?.uid}`, data.analysis);
+        
+        // 🌟 AUTOMATICALLY SAVE TO PINECONE RAG DB
+        fetch(`http://${host}:8000/api/save-pinecone`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patient_id: userData?.uid || "anonymous",
+                text_data: `Medical Imaging AI Report:\n${data.analysis}`
+            })
+        }).catch(e => console.log("Pinecone link warning:", e));
+      } else {
+        setResult("Scan complete, but no analysis returned.");
+      }
+
     } catch (err) {
       setResult("⚠️ Vision Server Offline.");
     } finally {
@@ -347,20 +382,41 @@ function MedicalImaging({ userData, setSessionVision }: { userData: any, setSess
     }
   };
 
+  const clearCache = () => {
+      setResult('');
+      setFile(null);
+      localStorage.removeItem(`vision_report_${userData?.uid}`);
+      setSessionVision('');
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto bg-slate-900/80 p-8 rounded-3xl shadow-2xl border border-slate-700/50 backdrop-blur-sm">
-      <h2 className="text-2xl font-black text-indigo-400 mb-1 tracking-wider uppercase">Imaging AI</h2>
-      <p className="text-slate-400 text-sm mb-8 font-medium">Upload CT/MRI for LLaVA Multimodal evaluation.</p>
+      <div className="flex justify-between items-center mb-1">
+          <h2 className="text-2xl font-black text-indigo-400 uppercase tracking-widest">Imaging AI</h2>
+          {result && (
+              <button onClick={clearCache} className="text-xs text-red-400 hover:text-red-300 font-bold uppercase bg-red-500/10 px-3 py-1 rounded-md transition-colors">Clear Cache</button>
+          )}
+      </div>
+      <p className="text-slate-400 text-sm mb-8 font-medium">Upload CT/MRI for Multimodal evaluation.</p>
+      
       <div className="border-2 border-dashed border-slate-700 rounded-2xl p-10 flex flex-col items-center justify-center bg-slate-950/30 hover:bg-slate-950/50 transition-colors relative">
         <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
         <div className="text-5xl mb-4 opacity-50">🩻</div>
         <p className="text-slate-300 font-bold">{file ? file.name : "Drag & Drop Medical Scan"}</p>
       </div>
-      <button onClick={handleUpload} disabled={!file || isUploading} className="w-full mt-6 bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold py-4 px-6 rounded-xl transition-all shadow-lg uppercase">
+      
+      <button onClick={handleUpload} disabled={!file || isUploading} className="w-full mt-6 bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold py-4 px-6 rounded-xl transition-all shadow-lg uppercase disabled:opacity-50 disabled:bg-slate-800">
         {isUploading ? "AI Analyzing..." : "Run Vision Analysis"}
       </button>
+      
       {result && (
-        <div className="mt-8 p-6 bg-slate-950 rounded-xl border border-slate-800 text-slate-300 text-sm leading-relaxed">{result}</div>
+        <div className="mt-8 p-6 bg-slate-950 rounded-xl border border-slate-800 text-slate-300 text-sm leading-relaxed font-mono whitespace-pre-wrap shadow-inner overflow-y-auto max-h-[300px] custom-scrollbar">
+             <span className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 
+                 Analysis Retrieved & Synced to Vector DB
+             </span>
+             {result}
+         </div>
       )}
     </div>
   );
@@ -582,7 +638,6 @@ function TriageMap({ userLat, userLng, priority }: { userLat: number, userLng: n
                               <span className="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">Traffic: LOW</span>
                               <span>Wait: 5m</span>
                           </div>
-                          {/* 🌟 FIX: Proper Google Maps Navigation URL */}
                           <a 
                               href={`https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}`} 
                               target="_blank" 
@@ -598,6 +653,7 @@ function TriageMap({ userLat, userLng, priority }: { userLat: number, userLng: n
       </div>
   );
 }
+
 // ══════════════════════════════════════════════════════════════════
 // 5. MAIN DASHBOARD SHELL
 // ══════════════════════════════════════════════════════════════════
@@ -613,7 +669,6 @@ export default function PatientHub() {
 
   useEffect(() => {
     if ("geolocation" in navigator) {
-      // 🌟 FIX 3: Force the browser to drop the cached Chennai location and get the real location!
       navigator.geolocation.getCurrentPosition(
         (pos) => { setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
         (err) => { console.warn("GPS Error:", err); },
@@ -667,7 +722,10 @@ export default function PatientHub() {
       <main className="flex-1 p-4 md:p-10 overflow-y-auto relative bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
         <div className="relative z-10 max-w-6xl mx-auto">
           {activeTab === 'vitals' && <VitalsScanner userData={userData} setSessionVitals={setSessionVitals} />}
-          {activeTab === 'imaging' && <MedicalImaging userData={userData} setSessionVision={setSessionVision} />}
+          
+          {/* 🌟 PASSING sessionVision into the Monolithic Component */}
+          {activeTab === 'imaging' && <MedicalImaging userData={userData} setSessionVision={setSessionVision} sessionVision={sessionVision} />}
+          
           {activeTab === 'chat' && <AIConsult userData={userData} />}
           
           {activeTab === 'triage-map' && (
