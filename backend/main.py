@@ -1,8 +1,11 @@
+import os
+# 🌟 MAGIC OOM FIX: Keeps the web server strictly on CPU, saving RAM! 🌟
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import shutil
-import os
 import uvicorn
 from dotenv import load_dotenv
 
@@ -85,4 +88,5 @@ async def get_dashboard_data():
     return {"recent_scans": recent_scans[:5]}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # 🌟 FIX: Removed reload=True to stop Windows from spawning duplicate RAM-heavy processes!
+    uvicorn.run(app, host="0.0.0.0", port=8000)

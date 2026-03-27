@@ -46,6 +46,11 @@ class ChatRequest(BaseModel):
     question: str
     context: str
 
+# 🌟 ADD THE PINECONE DATA MODEL
+class PineconeData(BaseModel):
+    patient_id: str
+    text_data: str
+
 # ══════════════════════════════════════════════════════════════════
 #  AGENT DEFINITIONS (Using Bulletproof Fallback)
 # ══════════════════════════════════════════════════════════════════
@@ -128,6 +133,24 @@ async def chat_with_agents(data: ChatRequest):
         return {"reply": reply_text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# 🌟 ADD THIS NEW ROUTE AT THE BOTTOM (Before __main__)
+@app.post("/api/save-pinecone")
+async def save_to_pinecone(data: PineconeData):
+    if pc:
+        try:
+            import time
+            embed_model = genai.GenerativeModel('models/text-embedding-004')
+            vector = embed_model.embed_content(data.text_data)["embedding"]
+            index = pc.Index(INDEX_NAME)
+            doc_id = f"vision_{data.patient_id}_{int(time.time())}"
+            index.upsert(vectors=[{"id": doc_id, "values": vector, "metadata": {"text": data.text_data}}])
+            print(f"✅ [Pinecone] Vision Report vectorized and saved for {data.patient_id}!")
+            return {"status": "success"}
+        except Exception as e:
+            print(f"⚠️ [Pinecone] Upsert failed: {e}")
+            return {"status": "error", "detail": str(e)}
+    return {"status": "skipped", "detail": "Pinecone not connected"}
 
 if __name__ == "__main__":
     print("🚀 Booting Nidan Multi-Agent Microservice on Port 8003...")

@@ -1,8 +1,8 @@
-"""
-NIDAN-LIVE — Multi-Agent Diagnostic Framework
-Powered by LangGraph, Pinecone, and Bulletproof Multi-LLM Routing
-"""
 import os
+# 🌟 MAGIC OOM FIX: Prevents Langchain & Transformers from secretly waking up the GPU! 🌟
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 import time
 from typing import TypedDict
 from dotenv import load_dotenv
@@ -11,30 +11,25 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
-from langchain_huggingface import HuggingFaceEndpoint
 from langchain_community.chat_models import ChatOllama
 from pinecone import Pinecone
 
 load_dotenv()
 
 # ══════════════════════════════════════════════════════════════════
-#  1. BULLETPROOF UNIVERSAL LLM ENGINE (Gemini -> Groq -> Local)
+#  1. BULLETPROOF UNIVERSAL LLM ENGINE (Stripped heavy dependencies)
 # ══════════════════════════════════════════════════════════════════
 class BulletproofLLM:
     def __init__(self):
-        # PRIORITY 1: GOOGLE
-        # ---------------------------------------------------------
         self.google = {
             "name": "Google (Gemini)",
             "builder": lambda: ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash", # Using 1.5-pro for best clinical reasoning
+                model="gemini-1.5-pro", 
                 google_api_key=os.getenv("gemini_api_key") or os.getenv("GOOGLE_API_KEY"),
                 temperature=0.2
             )
         }
 
-        # PRIORITY 2: GROQ
-        # ---------------------------------------------------------
         self.groq = {
             "name": "Groq (Llama 3.3)",
             "builder": lambda: ChatGroq(
@@ -44,8 +39,6 @@ class BulletproofLLM:
             )
         }
 
-        # PRIORITY 3: OPENROUTER
-        # ---------------------------------------------------------
         self.openrouter = {
             "name": "OpenRouter (DeepSeek)",
             "builder": lambda: ChatOpenAI(
@@ -56,19 +49,6 @@ class BulletproofLLM:
             )
         }
 
-        # PRIORITY 4: HUGGING FACE
-        # ---------------------------------------------------------
-        self.hf = {
-            "name": "Hugging Face (Zephyr 7B)",
-            "builder": lambda: HuggingFaceEndpoint(
-                repo_id="HuggingFaceH4/zephyr-7b-beta", 
-                huggingfacehub_api_token=os.getenv("hugging_face_api_key"),
-                temperature=0.1
-            )
-        }
-
-        # PRIORITY 5: LOCAL OLLAMA
-        # ---------------------------------------------------------
         self.ollama = {
             "name": "Local Laptop (Ollama Llama3.2)",
             "builder": lambda: ChatOllama(
@@ -77,49 +57,52 @@ class BulletproofLLM:
             )
         }
 
-        # 🌟 ORDER OF BATTLE: Gemini is FIRST 🌟
-        self.providers = [self.google, self.groq, self.openrouter, self.hf, self.ollama]
+        # Removed HuggingFace to save massive amounts of RAM
+        self.providers = [self.google, self.groq, self.openrouter, self.ollama]
 
     def invoke(self, prompt: str) -> str:
         errors = []
         for provider in self.providers:
             try:
-                # 1. Build the model (Lazy Load to save memory/keys)
                 llm = provider["builder"]()
-                
-                # 2. Try to run it
                 print(f"🔄 [Universal LLM] Trying {provider['name']}...")
                 response = llm.invoke(prompt)
-                
-                # 3. Success! Normalize output (Chat models return AIMessage, HF returns str)
                 content = response.content if hasattr(response, 'content') else str(response)
                 print(f"✅ [Universal LLM] Success with {provider['name']}")
                 return content
-                
             except Exception as e:
-                # Log error but KEEP GOING to the next provider
                 print(f"⚠️ [Universal LLM] Failed {provider['name']}: {str(e)}")
                 errors.append(f"{provider['name']}: {str(e)}")
                 continue
         
-        # If we get here, literally everything failed (even local laptop).
         fallback_msg = "I am operating in a severely degraded offline state. Please seek immediate medical attention if you experience severe chest pain or shortness of breath. Your vitals are being monitored."
-        print(f"💀 [Universal LLM] All 5 AI Models Failed. Errors: {errors}")
+        print(f"💀 [Universal LLM] All AI Models Failed. Errors: {errors}")
         return fallback_msg
 
 universal_llm = BulletproofLLM()
 
 # ══════════════════════════════════════════════════════════════════
-#  2. PINECONE VECTOR MEMORY
+#  2. PINECONE VECTOR MEMORY 
 # ══════════════════════════════════════════════════════════════════
 class MedicalMemory:
     def __init__(self):
+        pinecone_key = os.getenv("pinecone_api_key") or os.getenv("PINECONE_API_KEY", "")
+        if not pinecone_key:
+            print("[Pinecone] Warning: PINECONE API key missing in .env. Using local memory mock.")
+            self.is_connected = False
+            self.local_memory = {}
+            return
+
         try:
-            self.pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY", "dummy"))
-            self.index = self.pc.Index("nidan-patient-history")
+            self.pc = Pinecone(api_key=pinecone_key)
+            self.index = self.pc.Index(
+                name="nidan-ai", 
+                host="https://nidan-ai-kb7ewda.svc.aped-4627-b74a.pinecone.io"
+            )
             self.is_connected = True
-        except:
-            print("[Pinecone] Warning: API key missing or invalid. Using local memory mock for demo.")
+            print("🟢 [Pinecone] Successfully connected to nidan-ai vector database!")
+        except Exception as e:
+            print(f"🔴 [Pinecone] Connection failed: {e}. Using local memory mock.")
             self.is_connected = False
             self.local_memory = {}
 
@@ -130,7 +113,7 @@ class MedicalMemory:
             return self.local_memory.get(patient_id, "No prior medical history found.")
 
 # ══════════════════════════════════════════════════════════════════
-#  3. LANGGRAPH STATE MACHINE (The Multi-Agent Workflow)
+#  3. LANGGRAPH STATE MACHINE 
 # ══════════════════════════════════════════════════════════════════
 class AgentState(TypedDict):
     patient_id: str
@@ -141,13 +124,11 @@ class AgentState(TypedDict):
 
 memory_db = MedicalMemory()
 
-# --- Agent 1: The Context Retriever ---
 def retrieve_patient_context(state: AgentState):
     print(f"[Agent 1] Retrieving Vector DB History for {state['patient_id']}...")
     history = memory_db.retrieve_history(state['patient_id'])
     return {"medical_history": history}
 
-# --- Agent 2: The Diagnostic Evaluator ---
 def diagnostic_evaluator(state: AgentState):
     print("[Agent 2] Running Bulletproof Multi-LLM Diagnostic Evaluation...")
     prompt = f"""
@@ -161,15 +142,12 @@ def diagnostic_evaluator(state: AgentState):
     analysis = universal_llm.invoke(prompt)
     return {"clinical_analysis": analysis}
 
-# --- Agent 3: The Triage Communicator ---
 def triage_communicator(state: AgentState):
     print("[Agent 3] Formatting Final Output for Patient Hub...")
     response = f"**Clinical Assessment:**\n{state['clinical_analysis']}\n\n*Note: Your rPPG vitals have been automatically attached to this session for the hospital admin.*"
     return {"final_response": response}
 
-# --- Build the LangGraph ---
 workflow = StateGraph(AgentState)
-
 workflow.add_node("retrieve_context", retrieve_patient_context)
 workflow.add_node("diagnostic_evaluator", diagnostic_evaluator)
 workflow.add_node("triage_communicator", triage_communicator)
