@@ -9,11 +9,9 @@ import shutil
 import uvicorn
 from dotenv import load_dotenv
 
-# Import your PyTorch rPPG scanner
 from rppg_core import calculate_bpm_from_video
-
-# Import your brand new Bulletproof LangGraph Agent
-from agent_core import run_medical_agent
+# Import the memory DB so we can route Vision reports to Pinecone!
+from agent_core import run_medical_agent, memory_db
 
 load_dotenv()
 
@@ -26,67 +24,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Local memory to store scans for the dashboard
-recent_scans = []
-
-# ══════════════════════════════════════════════════════════════════
-#  1. CLINICAL VITALS ROUTE (Your specialized scanner logic)
-# ══════════════════════════════════════════════════════════════════
 @app.post("/api/scan")
 async def process_scan(video: UploadFile = File(...)):
     file_location = f"temp_{video.filename}"
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(video.file, file_object)
     
-    # Run the new Multi-Region engine
     result = calculate_bpm_from_video(file_location)
-    
-    if os.path.exists(file_location):
-        os.remove(file_location)
-    
-    if result.get("status") != "success":
+    if os.path.exists(file_location): os.remove(file_location)
+    if result.get("status") != "success": 
         return {"vitals": result, "triage_priority": 5, "message": result.get("message", "Scan failed")}
 
     bpm = result.get("bpm", 0)
     rr = result.get("respiration_rate", 16)
     stress = result.get("stress_level", "Normal")
     
-    # Authentic Triage Logic
-    priority = 5
-    recommendation = "Delhi City Clinic" # This will be overridden by Next.js GPS anyway
+    # 🌟 MANCHESTER TRIAGE SYSTEM (MTS) LOGIC
+    # 1: Immediate, 2: Very Urgent, 3: Urgent, 4: Standard, 5: Non-Urgent
+    priority = 5 
     
-    if bpm > 110 or rr > 24:
+    # Severe abnormal vitals = Level 1 (Red - Immediate Resuscitation)
+    if bpm > 130 or bpm < 40 or rr > 30 or rr < 10: 
         priority = 1
-    elif bpm > 90 or "High" in stress:
+    # Highly abnormal vitals = Level 2 (Orange - Very Urgent)
+    elif bpm > 110 or bpm < 50 or rr > 24: 
         priority = 2
+    # Moderately abnormal / High Stress = Level 3 (Yellow - Urgent)
+    elif bpm > 95 or "High" in stress: 
+        priority = 3
+    # Slightly elevated = Level 4 (Green - Standard)
+    elif bpm > 80: 
+        priority = 4
+    # Normal = Level 5 (Blue - Non-Urgent)
+    else:
+        priority = 5
         
-    return {
-        "vitals": result,
-        "triage_priority": priority,
-        "recommended_facility": recommendation
-    }
+    return { "vitals": result, "triage_priority": priority, "recommended_facility": "Local Clinic" }
 
-# ══════════════════════════════════════════════════════════════════
-#  2. AI AGENT ROUTE (Connects Next.js Chat to LangGraph)
-# ══════════════════════════════════════════════════════════════════
 class ChatRequest(BaseModel):
     patient_id: str
     symptoms: str
 
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest):
-    # This triggers the Bulletproof Multi-Agent State Machine!
     reply = await run_medical_agent(req.patient_id, req.symptoms)
     return {"reply": reply}
 
-# ══════════════════════════════════════════════════════════════════
-#  3. HOSPITAL ADMIN DASHBOARD ROUTE
-# ══════════════════════════════════════════════════════════════════
-@app.get("/api/dashboard_data")
-async def get_dashboard_data():
-    """Endpoint for a command center to fetch the latest scans."""
-    return {"recent_scans": recent_scans[:5]}
+# 🌟 Pushes Vision Text to Pinecone Vector DB
+class PineconeData(BaseModel):
+    patient_id: str
+    text_data: str
+
+@app.post("/api/save-pinecone")
+async def save_pinecone(req: PineconeData):
+    print(f"📥 [Server] Received data to save to Vector DB for patient: {req.patient_id}")
+    memory_db.save_record(req.patient_id, req.text_data)
+    return {"status": "success"}
 
 if __name__ == "__main__":
-    # 🌟 FIX: Removed reload=True to stop Windows from spawning duplicate RAM-heavy processes!
     uvicorn.run(app, host="0.0.0.0", port=8000)
