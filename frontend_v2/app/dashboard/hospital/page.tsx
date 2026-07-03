@@ -26,6 +26,13 @@ const getMTSConfig = (priority: number) => {
   }
 };
 
+// 🌟 NEW: FORMAT UNIQUE PATIENT ID
+const formatPatientId = (id: string) => {
+  if (!id) return 'PT-UNKNOWN';
+  // Takes the first 6 characters of the Firebase UID to make a clean, unique hospital ID
+  return `PT-${id.substring(0, 6).toUpperCase()}`;
+};
+
 // 🌟 DEMO SETTING: Set to 15 so you can easily show the judges the "Full Capacity" warning!
 const MAX_HOSPITAL_CAPACITY = 15;
 
@@ -109,6 +116,114 @@ export default function HospitalDashboard() {
   const handleQuickAction = (msg: string) => {
     setActionMessage(msg);
     setTimeout(() => setActionMessage(''), 3000);
+  };
+
+  // 🌟 UPGRADED: Data Export Function (Fixed PDF Invocation)
+  const exportData = (type: 'all' | 'critical', format: 'csv' | 'pdf' = 'csv') => {
+    const dataToExport = type === 'critical' 
+        ? patients.filter(p => p.priority === 1 || p.priority === 2) 
+        : patients;
+    
+    if (dataToExport.length === 0) {
+      alert("No patient data available to export.");
+      return;
+    }
+
+    if (format === 'pdf') {
+      const generatePDF = () => {
+        try {
+          const { jsPDF } = (window as any).jspdf;
+          const doc = new jsPDF('landscape');
+          doc.text(`Nidan Triage Report - ${type.toUpperCase()}`, 14, 15);
+
+          const tableColumn = ["Patient ID", "Name", "Time", "MTS Priority", "BPM", "Resp", "Stress", "Assigned Room"];
+          const tableRows: any[] = [];
+
+          dataToExport.forEach(p => {
+            const timeStr = p.timestamp?.toDate ? p.timestamp.toDate().toLocaleString() : new Date().toLocaleString();
+            tableRows.push([
+              formatPatientId(p.patientId || p.id),
+              p.patientName || 'Anonymous',
+              timeStr,
+              `P${p.priority || 5}`,
+              p.bpm || '-',
+              p.resp || '-',
+              p.stress || 'Normal',
+              p.room || 'Unassigned'
+            ]);
+          });
+
+          // Use the correct autoTable prototype method
+          (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 20,
+            theme: 'grid',
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [14, 165, 233] }
+          });
+
+          doc.save(`Nidan_Triage_${type}_${new Date().toISOString().slice(0,10)}.pdf`);
+        } catch (error) {
+          console.error("PDF generation failed. Scripts may still be loading.", error);
+          alert("Preparing PDF engine, please click again in a moment.");
+        }
+      };
+
+      // Load jsPDF dynamically if not present
+      if (!(window as any).jspdf) {
+        const s1 = document.createElement('script');
+        s1.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+        document.body.appendChild(s1);
+        s1.onload = () => {
+          const s2 = document.createElement('script');
+          s2.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js";
+          document.body.appendChild(s2);
+          s2.onload = generatePDF;
+        };
+      } else if (!(window as any).jspdf.jsPDF.prototype.autoTable) {
+        const s2 = document.createElement('script');
+        s2.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js";
+        document.body.appendChild(s2);
+        s2.onload = generatePDF;
+      } else {
+        generatePDF();
+      }
+      return;
+    }
+
+    // CSV Logic
+    const headers = ['Patient ID', 'Name', 'Timestamp', 'MTS Priority', 'BPM', 'Respiration', 'Stress', 'Assigned Room', 'GPS Location', 'AI Vision Report'];
+    
+    const csvRows = dataToExport.map(p => {
+      const timeStr = p.timestamp?.toDate ? p.timestamp.toDate().toLocaleString() : new Date().toLocaleString();
+      const gps = p.lat && p.lng ? `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}` : 'N/A';
+      const report = p.visionReport ? `"${p.visionReport.replace(/"/g, '""')}"` : 'N/A';
+      
+      return [
+        formatPatientId(p.patientId || p.id),
+        `"${p.patientName || 'Anonymous'}"`,
+        `"${timeStr}"`,
+        p.priority || 5,
+        p.bpm || 'N/A',
+        p.resp || 'N/A',
+        p.stress || 'Normal',
+        p.room || 'Unassigned',
+        `"${gps}"`,
+        report
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Nidan_Triage_${type}_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const criticalCount = patients.filter(p => p.priority === 1 || p.priority === 2).length;
@@ -245,6 +360,26 @@ export default function HospitalDashboard() {
                   <button onClick={() => setFilter('unassigned')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filter === 'unassigned' ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-400 hover:text-indigo-300'}`}>Unassigned</button>
                </div>
 
+               {/* 🌟 UPGRADED: Export Buttons (CSV & PDF) */}
+               <div className="bg-slate-950 border border-slate-700 p-1 rounded-xl flex gap-1 mr-2">
+                  <div className="flex items-center border-r border-slate-800 pr-1 mr-1">
+                     <button onClick={() => exportData('all', 'csv')} className="px-2 py-2 rounded-l-lg text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-1" title="Export All (CSV)">
+                        📥 <span className="hidden sm:inline">All</span>
+                     </button>
+                     <button onClick={() => exportData('all', 'pdf')} className="px-2 py-2 rounded-r-lg text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-1 border-l border-slate-800" title="Export All (PDF)">
+                        📄
+                     </button>
+                  </div>
+                  <div className="flex items-center">
+                     <button onClick={() => exportData('critical', 'csv')} className="px-2 py-2 rounded-l-lg text-xs font-bold text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-1" title="Export Critical (CSV)">
+                        🚨 <span className="hidden sm:inline">Critical</span>
+                     </button>
+                     <button onClick={() => exportData('critical', 'pdf')} className="px-2 py-2 rounded-r-lg text-xs font-bold text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-1 border-l border-slate-800" title="Export Critical (PDF)">
+                        📄
+                     </button>
+                  </div>
+               </div>
+
                {isAllocating && <span className={`text-xs font-bold animate-pulse px-3 py-1.5 rounded-lg border ${isAtCapacity ? 'text-amber-400 bg-amber-900/30 border-amber-500/30' : 'text-sky-400 bg-sky-900/30 border-sky-500/30'}`}>{allocationLog}</span>}
                <button 
                   onClick={handleAutoAllocate}
@@ -292,7 +427,7 @@ export default function HospitalDashboard() {
                         {patient.timestamp && (
                             <p className="text-[10px] font-bold text-emerald-400 mt-1">Scanned: {new Date(patient.timestamp?.toDate ? patient.timestamp.toDate() : patient.timestamp).toLocaleTimeString()}</p>
                         )}
-                        <p className="text-[10px] text-slate-500 font-mono mt-1">ID: {patient.patientId}</p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-1">ID: {formatPatientId(patient.patientId || patient.id)}</p>
                         {patient.lat && <p className="text-[9px] text-sky-400 mt-1">GPS: {patient.lat.toFixed(3)}, {patient.lng.toFixed(3)}</p>}
                       </td>
                       <td className="p-5">
@@ -359,7 +494,7 @@ export default function HospitalDashboard() {
                      {selectedPatient.patientName || 'Anonymous Patient'}
                      {selectedPatient.priority === 1 && <span className="bg-red-600 text-white text-[10px] px-2 py-1 rounded uppercase tracking-widest animate-pulse">Critical</span>}
                    </h2>
-                   <p className="text-xs text-slate-500 font-mono mt-1">ID: {selectedPatient.patientId}</p>
+                   <p className="text-xs text-slate-500 font-mono mt-1">ID: {formatPatientId(selectedPatient.patientId || selectedPatient.id)}</p>
                 </div>
                 <button onClick={() => setSelectedPatient(null)} className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-red-500 flex items-center justify-center transition-colors font-bold">
                    ✕
