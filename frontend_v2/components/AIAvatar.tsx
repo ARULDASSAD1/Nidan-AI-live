@@ -137,7 +137,10 @@ export default function AIAvatar({ patientId, vitals, visionReport }: AIAvatarPr
         `;
 
         try {
-            const res = await fetch("http://127.0.0.1:8003/api/chat-with-agents", {
+            const avtUrl = typeof window !== 'undefined' 
+                ? `http://${window.location.hostname}:8003` 
+                : 'http://127.0.0.1:8003';
+            const res = await fetch(`${avtUrl}/api/chat-with-agents`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

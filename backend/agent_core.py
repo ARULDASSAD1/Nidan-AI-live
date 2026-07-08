@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
-from langchain_community.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
 from pinecone import Pinecone
 import google.generativeai as genai
 
@@ -95,7 +95,7 @@ class MedicalMemory:
     def save_record(self, patient_id: str, text: str):
         if not self.is_connected: return
         try:
-            emb = genai.embed_content(model="models/text-embedding-004", content=text)
+            emb = genai.embed_content(model="models/gemini-embedding-2", content=text)
             vector = emb['embedding']
             
             doc_id = f"record_{patient_id}_{int(time.time())}"
@@ -114,7 +114,7 @@ class MedicalMemory:
             
         try:
             print(f"🔍 [Pinecone RAG] Searching vector DB for {patient_id} past records...")
-            emb = genai.embed_content(model="models/text-embedding-004", content="patient medical history and previous scan reports")
+            emb = genai.embed_content(model="models/gemini-embedding-2", content="patient medical history and previous scan reports")
             vector = emb['embedding']
             
             results = self.index.query(

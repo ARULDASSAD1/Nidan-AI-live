@@ -1,0 +1,11 @@
+# --- Nidan-Live Vision Node Dependencies ---
+
+# Core AI Libraries
+torch               # PyTorch framework
+torchvision         # PyTorch image processing
+transformers        # Hugging Face library for Moondream2
+accelerate          # Helps manage VRAM efficiently across the T400
+
+# Image Handling & Architecture
+Pillow              # For loading and formatting the images
+einops              # Required matrix operations for Moondream's architecture

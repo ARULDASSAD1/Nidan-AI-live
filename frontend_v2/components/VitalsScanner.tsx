@@ -133,15 +133,18 @@ export default function VitalsScanner({ userData, setSessionVitals }: { userData
       const formData = new FormData(); formData.append('video', blob, 'scan.webm');
 
       try {
-        // 🌟 DYNAMIC HOST: Works on both localhost and Mobile IPs
-        const host = window.location.hostname;
-        const response = await fetch(`http://${host}:8000/api/scan`, { method: 'POST', body: formData });
+        // 🌟 DYNAMIC HOST: Safely adapts to Pi's IP or Laptop's Localhost
+        const backendUrl = typeof window !== 'undefined' 
+          ? `http://${window.location.hostname}:8000` 
+          : 'http://localhost:8000';
+          
+        const response = await fetch(`${backendUrl}/api/scan`, { method: 'POST', body: formData });
         const data = await response.json();
 
         if (data.vitals?.status === "success") {
           const results = { bpm: data.vitals.bpm || '--', resp: data.vitals.respiration_rate || '--', stress: data.vitals.stress_level || '--', eyeStatus: data.vitals.eye_status || '--' };
           setVitals(results); setSessionVitals(results); setStatus('complete');
-
+          
           await addDoc(collection(db, "scans"), {
             patientId: userData?.uid || "Anonymous", patientName: userData?.name || "Anonymous", ...results,
             priority: data.triage_priority, routedTo: nearestHospital.name, timestamp: serverTimestamp(),

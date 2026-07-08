@@ -1,0 +1,23 @@
+# --- Nidan-Live Main PC Dependencies ---
+
+# Camera & Facial Recognition (rPPG Core)
+opencv-python       # For accessing the webcam and video frames
+mediapipe           # For ultra-fast facial landmark detection (cheeks/forehead tracking)
+
+# Signal Processing (rPPG Math)
+numpy               # For raw pixel array calculations
+scipy               # For bandpass filtering the color signals into a heart rate
+
+# Networking (Microservices)
+requests            # For sending data to the Vision and Logic nodes
+fastapi
+pydantic
+google.generativeai
+pinecone
+dotenv
+uvicorn
+langgraph
+langchain_google_genai
+langchain_groq
+langchain_community
+pinecone

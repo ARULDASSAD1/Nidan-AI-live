@@ -3,7 +3,8 @@ const nextConfig = {
   // 🌟 HACKATHON OVERRIDE: Allows your mobile phone to download styles and fonts
   allowedDevOrigins: [
     '192.168.222.1', 
-    'http://192.168.222.1:3000'
+    'http://192.168.222.1:3000',
+    '192.168.103.29', 'localhost'
   ],
 };
 
